@@ -1,0 +1,28 @@
+# Only the sources go in: everything else here is downloaded (tools/, helper/node_modules) or built (build/).
+# Ignore everything, then let in what the app is made from.
+/*
+!/.gitignore
+!/README.md
+!/*.sh
+!/*.ps1
+
+# the app (Qt/QML C++, the mpv controller, icons)
+!/src/
+
+# the Deno helper's sources (node_modules and the cache are fetched again by build.sh / deno)
+!/helper/
+/helper/*
+!/helper/*.ts
+!/helper/deno.json
+!/helper/deno.lock
+
+# the browser extension
+!/extension/
+
+# the small test tools and the Qt download script (not Qt, Deno, mpv, Python themselves)
+!/tools/
+/tools/*
+!/tools/*.py
+!/tools/*.sh
+
+__pycache__/

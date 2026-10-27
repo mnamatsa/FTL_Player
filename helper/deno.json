@@ -1,0 +1,8 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "youtubei.js": "npm:youtubei.js@18.2.0",
+    "bgutils-js": "npm:bgutils-js@4.0.3",
+    "jsdom": "npm:jsdom@30.1.2"
+  }
+}
