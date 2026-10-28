@@ -1,4 +1,4 @@
-# FTL Player (formerly FreeTube Light): development
+# FTL Player: development
 
 A light native YouTube player for Windows: Qt/QML (C++) with libmpv for the video and a Deno helper using
 youtubei.js. The portable app lives in the folder above this one (`FTL Player.exe`; settings and caches go in
