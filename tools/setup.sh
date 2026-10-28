@@ -27,7 +27,7 @@ sha_ok() { [ -f "$1" ] && [ "$(sha256sum "$1" | cut -d' ' -f1)" = "$2" ]; }
 fetch() {
     if sha_ok "$2" "$3"; then return; fi
     echo "download $(basename "$1")"
-    curl -fL --retry 3 -o "$2.part" "$1"
+    curl -fsSL --retry 3 -o "$2.part" "$1"
     mv -f "$2.part" "$2"
     sha_ok "$2" "$3" || { echo "SHA-256 mismatch for $2 (delete it and run again)"; exit 1; }
 }
@@ -60,7 +60,7 @@ if [ -f "$T/mpv/libmpv-2.dll" ] && [ -f "$T/mpv/libmpv.dll.a" ] && [ -f "$T/mpv/
     echo "already there"
 else
     # 7zr.exe: py7zr can't unpack this archive (BCJ2 filter). 7-Zip's own site, latest version (no fixed checksum).
-    [ -f "$T/7zr.exe" ] || curl -fL --retry 3 -o "$T/7zr.exe" https://www.7-zip.org/a/7zr.exe
+    [ -f "$T/7zr.exe" ] || curl -fsSL --retry 3 -o "$T/7zr.exe" https://www.7-zip.org/a/7zr.exe
     fetch "$MPV_URL" "$DL/mpv-dev.7z" "$MPV_SHA256"
     mkdir -p "$T/mpv"
     "$T/7zr.exe" x -y -bso0 -bsp0 "-o$(cygpath -w "$T/mpv")" "$(cygpath -w "$DL/mpv-dev.7z")"
