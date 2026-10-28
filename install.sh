@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copies the build from dev/build/stage (made by build.sh) into the portable app in the folder above dev/.
 # Refuses while that copy of FTL Player is running (it is never closed from here). Data/ is not touched.
-# Run from Git Bash:  bash "D:/Applications/FreeTube Light/dev/install.sh"
+# Run from Git Bash in this folder:  bash install.sh
 set -euo pipefail
 
 DEV="$(cd "$(dirname "$0")" && pwd)"

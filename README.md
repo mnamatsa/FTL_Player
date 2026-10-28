@@ -1,13 +1,38 @@
 # FTL Player (formerly FreeTube Light): development
 
-The portable app lives in the folder above this one (`FTL Player.exe`; settings and caches go in `Data\`).
-This folder holds the source, a self-contained toolchain and build output.
+A light native YouTube player for Windows: Qt/QML (C++) with libmpv for the video and a Deno helper using
+youtubei.js. The portable app lives in the folder above this one (`FTL Player.exe`; settings and caches go in
+`Data\`). This folder holds the source; the toolchain and build output, which aren't in the repository, go in
+`tools/`, `downloads/` and `build/` here.
+
+## Building from a fresh clone
+
+Needs Windows 10/11 (x64), [Git for Windows](https://git-scm.com/download/win) (its Git Bash runs the
+scripts) and [Python 3](https://www.python.org/downloads/) (only for the setup). About 3 GB of disk space.
+
+The scripts install the app into the folder *above* this one, so clone it as the `dev` folder of where the app
+should go (any path, spaces are fine):
+
+```sh
+git clone https://github.com/mnamatsa/FTL_Player.git "D:/Apps/FTL Player/dev"
+cd "D:/Apps/FTL Player/dev"
+bash tools/setup.sh                  # once: downloads Qt + MinGW + CMake + Ninja, Deno, libmpv into tools/ (~1 GB)
+bash build.sh                        # builds a complete copy into build/stage
+bash install.sh                      # copies it to the folder above: D:/Apps/FTL Player/FTL Player.exe
+bash portable.sh "D:/FTL Player"     # or: a trimmed copy anywhere, to run or share (zip that folder)
+```
+
+`tools/setup.sh` checks every download's SHA-256 and skips what is already there. The libmpv build it uses
+(`mpv-dev-x86_64-20261014-git-ec38361c56.7z` from shinchiro/mpv-winbuild-cmake, which `src/mpv/osc.lua` comes from)
+is kept online by its builder for about a month only: keep a copy, and put it in `downloads/mpv-dev.7z` when it
+is gone. The helper's npm packages (versions pinned in `helper/deno.json` / `deno.lock`) are fetched by Deno during
+the first build.
 
 ## Build
 
 ```sh
-bash "D:/Applications/FreeTube Light/dev/build.sh"     # build into dev/build/stage (for testing)
-bash "D:/Applications/FreeTube Light/dev/install.sh"   # copy the stage into the app folder
+bash build.sh     # build into build/stage (for testing)
+bash install.sh   # copy the stage into the app folder (the one above this)
 ```
 
 `build.sh` compiles the app, bundles the helper and puts a complete portable copy in `dev/build/stage`. It never
@@ -19,7 +44,7 @@ run as a background task of a working session (it ends with it, or `-Stop`), ins
 as the installed copy is closed and logs to `build/install.log`.
 
 ```sh
-bash "D:/Applications/FreeTube Light/dev/portable.sh" "D:/Applications/FreeTube Light V1"   # a trimmed portable copy
+bash portable.sh "D:/FTL Player"   # a trimmed portable copy (any folder)
 ```
 
 `portable.sh` copies the stage to another folder with only what the app loads (about 80 files instead of

@@ -1,7 +1,7 @@
 # Watches for a new build in dev\build\stage that is marked ready (release.sh, after testing) and installs it
 # (install.sh) as soon as the installed FTL Player is closed. Meant to run as a background task of a working session, ending with it; it can
 # also be stopped with:
-#   powershell -File "D:\Applications\FreeTube Light\dev\watch-install.ps1" -Stop
+#   powershell -File watch-install.ps1 -Stop
 # One copy runs at a time. What it does is logged to dev\build\install.log.
 param([switch]$Stop)
 

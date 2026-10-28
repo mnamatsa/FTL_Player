@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backs up FreeTube Light before bigger changes, into "D:/Applications/FreeTube Light Backups/<time> <label>/":
+# Backs up FreeTube Light before bigger changes, into "<app folder>/../FreeTube Light Backups/<time> <label>/":
 #   source/  the code, scripts and test tools (not the downloaded toolchain, dependencies or build output)
 #   app/     the installed app, trimmed like portable.sh (it runs as is)
 #   Data/    the user's data files (subscriptions, history, settings ...; not the caches)

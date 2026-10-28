@@ -4,7 +4,7 @@
 # windeployqt adds that the app never loads (other Controls styles, the QML debugger, touch input, unused
 # QML modules, loose .qml / .qmltypes files: the QML is compiled into the DLLs, see "prefer" in each qmldir).
 # A Data folder already in the destination is kept.
-# usage: portable.sh <destination folder>      e.g. portable.sh "D:/Applications/FreeTube Light V1"
+# usage: portable.sh <destination folder>      e.g. portable.sh "D:/FTL Player"
 set -euo pipefail
 
 DEV="$(cd "$(dirname "$0")" && pwd)"
