@@ -2,6 +2,7 @@
 # Ignore everything, then let in what the app is made from.
 /*
 !/.gitignore
+!/.gitattributes
 !/README.md
 !/*.sh
 !/*.ps1

@@ -1,0 +1,6 @@
+# Line endings: text files are stored with LF; the bash scripts are always checked out with LF too (Git for
+# Windows otherwise gives them CRLF, and bash fails on the \r). Images and icons are never converted.
+* text=auto
+*.sh text eol=lf
+*.png binary
+*.ico binary
