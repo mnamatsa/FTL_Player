@@ -65,6 +65,8 @@ private:
     qint64 m_remaining = 0;         // ms left while paused
     QElapsedTimer m_clock;          // running: time since m_endIn was set
     qint64 m_endIn = 0;             // ms from m_clock's start to the end
+    qint64 m_deadline = 0;          // the end in wall-clock ms (to tell that it ran out while the PC was asleep)
+    QElapsedTimer m_warnClock;      // time since the warning began
     bool m_warning = false, m_graceful = true, m_keepAwake = false, m_awake = false;
     QTimer m_fire, m_warn, m_ticker;
 };

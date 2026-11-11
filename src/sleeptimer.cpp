@@ -10,6 +10,7 @@
 #endif
 
 static constexpr qint64 WarnMs = 60'000;
+static constexpr qint64 LateMs = 15'000;   // a timer this late ran out while the PC was asleep
 
 SleepTimer::SleepTimer(QObject *parent) : QObject(parent)
 {
@@ -17,9 +18,10 @@ SleepTimer::SleepTimer(QObject *parent) : QObject(parent)
     m_warn.setSingleShot(true);
     connect(&m_fire, &QTimer::timeout, this, &SleepTimer::fire);
     connect(&m_warn, &QTimer::timeout, this, [this] {
-        if (m_state != "running")
+        if (m_state != "running" || QDateTime::currentMSecsSinceEpoch() - m_deadline > LateMs)   // see fire()
             return;
         m_warning = true;
+        m_warnClock.start();
         emit changed();
         emit warn();
     });
@@ -163,6 +165,7 @@ void SleepTimer::schedule()
     }
     m_ticker.start();
     const qint64 left = remaining();
+    m_deadline = QDateTime::currentMSecsSinceEpoch() + left;
     if (isPcAction(m_action) && !m_warning) {
         if (left - WarnMs <= 0)
             QTimer::singleShot(0, this, [this] { if (m_state == "running" && !m_warning) m_warn.start(0); });
@@ -176,6 +179,28 @@ void SleepTimer::fire()
 {
     if (m_state != "running")
         return;
+    // Windows runs the timers that ran out while the PC was asleep or hibernated the moment it wakes up: acting
+    // then would turn the PC off again right after it was woken, so such a timer is dropped.
+    const qint64 late = QDateTime::currentMSecsSinceEpoch() - m_deadline;
+    if (late > LateMs) {
+        qInfo("shutdown timer: \"%s\" ran out %lld s ago while the PC was asleep, cancelled",
+              qPrintable(m_action), late / 1000);
+        cancel();
+        return;
+    }
+    // PC actions always get the full warning first (the warning and fire timers can run out together)
+    const qint64 shown = m_warning ? m_warnClock.elapsed() : 0;
+    if (isPcAction(m_action) && shown < WarnMs - 1000) {
+        m_endIn = m_clock.elapsed() + WarnMs - shown;
+        if (!m_warning) {
+            m_warning = true;
+            m_warnClock.start();
+            emit changed();
+            emit warn();
+        }
+        schedule();
+        return;
+    }
     const QString action = m_action;
     m_warn.stop();
     m_ticker.stop();
