@@ -444,6 +444,11 @@ Item {
                     SettingCombo { setting: "feedSource"; options: [["RSS (fast)", "rss"], ["Full", "full"]] }
                 }
                 Row { label: "Hide Shorts in the feed"; SettingSwitch { setting: "hideShorts" } }
+                Row {
+                    label: "Hide members-only videos"
+                    hint: "Videos only the channel's members can watch (they don't play here); they show a MEMBERS ONLY badge otherwise."
+                    SettingSwitch { setting: "hideMembersOnly" }
+                }
                 Row { label: "Hide watched videos in the feed"; SettingSwitch { setting: "hideWatched" } }
                 Row {
                     label: "Hide upcoming premieres"

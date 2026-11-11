@@ -14,6 +14,7 @@ QtObject {
         hardwareDecoding: true,
         feedSource: "rss",      // "rss" (fast) or "full" (slower, with durations)
         hideShorts: true,
+        hideMembersOnly: false, // members-only videos (they can't be played here) left out of the feeds
         rememberHistory: true,
         resume: true,           // continue videos where you left off
         hideWatched: false,     // in the subscription feed
@@ -321,6 +322,22 @@ QtObject {
         durationsRevision++
         Store.save("durations", durations)
     }
+
+    // --- members-only videos (only the channel's members can watch them; YouTube sends this app no stream):
+    // videoId -> true / false (looked up), in Data/members-only.json. RSS doesn't tell: the channels' Videos tabs
+    // do (SubscriptionsPage.fillDurations), and a video YouTube refused as members-only is added (PlayerView).
+    property var membersOnly: Store.load("members-only", {})
+    property int membersOnlyRevision: 0
+    function addMembersOnly(found) {
+        const keys = Object.keys(found)
+        if (!keys.length) return
+        for (const k of keys) membersOnly[k] = !!found[k]
+        const all = Object.keys(membersOnly)
+        for (const k of all.slice(0, Math.max(0, all.length - 30000))) delete membersOnly[k]   // oldest go first
+        membersOnlyRevision++
+        Store.save("members-only", membersOnly)
+    }
+    function isMembersOnly(id) { return membersOnlyRevision >= 0 && membersOnly[id] === true }
 
     // --- history: newest first, [{videoId, title, channel, channelId, duration, thumbnail, watchedAt, position, length}]
 

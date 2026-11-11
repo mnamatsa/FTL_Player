@@ -40,6 +40,7 @@ ApplicationWindow {
     property url startImport                 // --import
     property url startExport                 // --export
     property string startLink: ""            // a YouTube link on the command line (the browser extension)
+    property string startPage: ""            // a page to open on (a sidebar entry opened in a new window)
     readonly property bool watching: playerView.video !== null
 
     Component.onCompleted: {
@@ -60,6 +61,7 @@ ApplicationWindow {
         if (startVideoInfo) openVideo(startVideoInfo)
         if (startVideo) openVideo({ videoId: startVideo, title: "", channel: "", channelId: "", views: "", published: "" })
         if (startLink && !openLink(startLink)) search(startLink, true)
+        if (startPage) page = startPage     // (straight there: no Subscriptions to go back to)
         markShown()     // after the start video (if any): a window for a video doesn't build the feed
     }
     onClosing: { playerView.close(); AppState.flush() }
@@ -426,6 +428,21 @@ ApplicationWindow {
                     highlighted: !win.watching && (win.page === modelData.page
                                  || (modelData.page === "channels" && win.page === "channel"))
                     onClicked: win.navigate(modelData.page)
+                    // middle click: the page in a new window (as on a card); right click: a menu with both
+                    TapHandler {
+                        acceptedButtons: Qt.MiddleButton | Qt.RightButton
+                        onTapped: (point, button) => {
+                            if (button === Qt.MiddleButton) win.newWindow({ startPage: modelData.page })
+                            else pageMenu.popup(parent, point.position.x, point.position.y)
+                        }
+                    }
+                    Menu {
+                        id: pageMenu
+                        popupType: Popup.Window     // a window of its own: the video's native window can't cover it
+                        width: 220
+                        MenuItem { text: "Open"; onTriggered: win.navigate(modelData.page) }
+                        MenuItem { text: "Open in new window"; onTriggered: win.newWindow({ startPage: modelData.page }) }
+                    }
                 }
             }
         }

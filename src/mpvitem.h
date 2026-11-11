@@ -136,6 +136,9 @@ signals:
     void playlistRequested(const QString &which); // Shift+N / Shift+P: next | previous
     void started();
     void failed(const QString &error);
+    // The picture can't be trusted any more: mpv lost its GPU device, or the PC woke up from sleep (after which
+    // a paused-then-played video once kept a frozen picture while the sound went on). PlayerView reloads it.
+    void videoLost(const QString &why);
 
 protected:
     void itemChange(ItemChange change, const ItemChangeData &value) override;
@@ -166,6 +169,9 @@ private:
     QSize m_settleSize;               // the size it waits to apply
     double m_seekTarget = -1;
     QElapsedTimer m_seekAt;
+    QElapsedTimer m_logMinute;        // mpv log messages: at most 30 a minute go to app.log
+    int m_logLines = 0;
+    void registerPlayer(bool on);     // (for the "woke up from sleep" videoLost)
     mpv_handle *m_mpv = nullptr;
     bool m_fullscreen = false;
     bool m_paused = false;

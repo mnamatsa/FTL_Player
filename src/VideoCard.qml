@@ -29,6 +29,8 @@ ItemDelegate {
     property bool inHistory: false      // shows "Remove from history" in the menu
     property string inPlaylist: ""      // shown on a saved playlist's page: "Remove from this playlist"
     property real uiScale: 1            // text size, with the grid's card size
+    // (from the feed / search item, or found out later: AppState.membersOnly)
+    readonly property bool membersOnly: model.membersOnly === true || AppState.isMembersOnly(videoId)
 
     // Preview (Settings > Layout > "Preview on video cards"): the pointer along the bar at the bottom of the
     // thumbnail shows the video at that point, a picture of its storyboard (helper cardStoryboard, asked the
@@ -124,6 +126,7 @@ ItemDelegate {
         Menu {
         width: 270                      // fits "Open channel in new window"
         MenuItem { text: "Open in new window"; onTriggered: card.openInNewWindow() }
+        MenuItem { text: "Open in browser"; onTriggered: Qt.openUrlExternally("https://www.youtube.com/watch?v=" + card.videoId) }
         MenuItem { text: "Open channel"; enabled: card.channelId !== ""; onTriggered: card.openChannel() }
         MenuItem { text: "Open channel in new window"; enabled: card.channelId !== ""; onTriggered: card.openChannelInNewWindow() }
         MenuSeparator {}
@@ -214,6 +217,25 @@ ItemDelegate {
                 height: parent.height / 3
                 visible: card.previewable
                 HoverHandler { id: scrubHover }
+            }
+            // Members only (only the channel's members can watch it on YouTube; it doesn't play here)
+            Rectangle {
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.margins: 6
+                visible: card.membersOnly
+                color: "#e02e7d32"
+                radius: 3
+                width: membersLabel.implicitWidth + 8
+                height: membersLabel.implicitHeight + 2
+                Label {
+                    id: membersLabel
+                    anchors.centerIn: parent
+                    text: "MEMBERS ONLY"
+                    font.pixelSize: Math.round(11 * card.uiScale)
+                    font.bold: true
+                    color: "white"
+                }
             }
             Rectangle {
                 anchors.right: parent.right

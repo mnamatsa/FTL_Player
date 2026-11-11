@@ -176,6 +176,7 @@ Item {
         // not looked up yet: the Live tab's text tells ("Premieres …" / "Scheduled for …")
         // (also while it plays: a premiere playing now stays in the Videos tab)
         r.premiere = !!(r.upcoming || r.live) && (st && st.p !== undefined ? st.p : /^premiere/i.test(v.scheduleText || v.published || ""))
+        r.membersOnly = !!v.membersOnly || AppState.isMembersOnly(v.videoId)
         return r
     }
 
@@ -194,15 +195,21 @@ Item {
     function fillDurations() {
         if (fillingDurations) return
         streamDurations()
-        const known = AppState.durations
-        const missing = v => !v.duration && !v.live && !v.upcoming && known[v.videoId] === undefined
+        const known = AppState.durations, members = AppState.membersOnly
+        // (no length yet, or not looked up for members-only: once for the videos there before that came in)
+        const missing = v => !v.live && !v.upcoming && ((!v.duration && known[v.videoId] === undefined) || members[v.videoId] === undefined)
         const newestMissing = ch => Math.max(0, ...feeds.videos[ch.id].items.filter(missing).map(v => v.publishedAt || 0))
         const queue = subscriptions.filter(ch => feeds.videos[ch.id] && feeds.videos[ch.id].items.some(missing))
             .map(ch => ({ ch: ch, t: newestMissing(ch) })).sort((a, b) => b.t - a.t).map(e => e.ch)
         if (!queue.length) return
         fillingDurations = true
-        let inFlight = 0, pending = 0, found = {}
-        const flush = () => { AppState.addDurations(found); found = {}; pending = 0 }
+        let inFlight = 0, pending = 0, found = {}, foundMembers = {}
+        const flush = () => {
+            AppState.addDurations(found)
+            AppState.addMembersOnly(foundMembers)
+            if (AppState.settings.hideMembersOnly && Object.keys(foundMembers).some(k => foundMembers[k])) rebuild("videos")
+            found = {}; foundMembers = {}; pending = 0
+        }
         const step = () => {
             if (!queue.length) {
                 if (inFlight === 0) { flush(); fillingDurations = false }
@@ -213,10 +220,13 @@ Item {
             Helper.call("channelTab", { channelId: ch.id, tab: "videos" }, function (r) {
                 inFlight--
                 if (r.ok) {
-                    const lengths = {}
-                    for (const v of r.items) if (v.duration) lengths[v.videoId] = v.duration
+                    const lengths = {}, mo = {}
+                    for (const v of r.items) { if (v.duration) lengths[v.videoId] = v.duration; if (v.membersOnly) mo[v.videoId] = true }
                     for (const v of (feeds.videos[ch.id] || { items: [] }).items)
-                        if (missing(v)) found[v.videoId] = lengths[v.videoId] || ""
+                        if (missing(v)) {
+                            if (!v.duration && known[v.videoId] === undefined) found[v.videoId] = lengths[v.videoId] || ""
+                            foundMembers[v.videoId] = !!mo[v.videoId]     // (not on the tab: a Short or stream, not)
+                        }
                     if (++pending >= 20) flush()        // show them as they come
                 }
                 step()
@@ -270,6 +280,7 @@ Item {
                 // streams live now and upcoming ones belong to the Live tab (RSS lists them as videos); premieres
                 // (upcoming or playing) stay here, and so do streams once over (their recordings)
                 .filter(v => !((v.live || v.upcoming) && !v.premiere) && !(s.hideUpcomingPremieres && v.upcoming))
+                .filter(v => !(s.hideMembersOnly && v.membersOnly))
                 .sort((a, b) => b.publishedAt - a.publishedAt).slice(0, 1000)
         } else {
             all = all.filter(isStream)
@@ -283,6 +294,7 @@ Item {
                     }
             all = all.map(withState)
                 .filter(v => !(v.upcoming && v.premiere) && !(AppState.settings.hideUpcomingLive && v.upcoming))
+                .filter(v => !(AppState.settings.hideMembersOnly && v.membersOnly))
             const live = all.filter(v => v.live).sort((a, b) => count(b.views) - count(a.views))
             const upcoming = all.filter(v => v.upcoming && !v.live).sort((a, b) => (a.startAt || 9e15) - (b.startAt || 9e15))
             const past = all.filter(v => !v.live && !v.upcoming).sort((a, b) => b.publishedAt - a.publishedAt)

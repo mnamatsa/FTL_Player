@@ -209,6 +209,19 @@ Item {
         }
     }
 
+    // The picture lost (MpvItem.videoLost: mpv's GPU device gone, or the PC woke up from sleep, after which the
+    // picture once stayed frozen while the sound went on): the video opens again where it was, paused if it was.
+    property double lastVideoReload: 0
+    Connections {
+        target: view.player
+        function onVideoLost(why) {
+            if (!view.video || !view.stream || view.unloaded || Date.now() - view.lastVideoReload < 10000) return
+            view.lastVideoReload = Date.now()
+            console.info("reloading \"" + view.video.title + "\": " + why)
+            view.open(view.video, !!view.playlist, view.player.timePos(), view.player.paused)
+        }
+    }
+
     // `pause`: start paused or not (else as Settings > "Start playing automatically" says)
     function open(v, fromPlaylist, startAt, pause) {
         saveProgress()
@@ -239,6 +252,7 @@ Item {
             if (!r.ok) {
                 if (recovering && recovering.videoId === id) recover(recovering.at)   // still no network
                 else status = r.error
+                if (/members-only|join this channel/i.test(r.error || "")) AppState.addMembersOnly({ [id]: true })   // (its cards' badge)
                 return
             }
             video = Object.assign({}, v, { title: r.title || v.title, channel: r.channel || v.channel,

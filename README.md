@@ -265,7 +265,9 @@ Library versions are pinned in `helper/deno.json`.
   fullscreen). The log has each new window, each press on a window and each fullscreen request (`MpvItem`),
   to tell such a case apart. `AppState.qml` is the shared singleton for
   settings, subscriptions and history. Middle click on a card opens the video in a new window; on the
-  card's channel name, or on a Channels page entry, it opens the channel (`startChannelInfo`). The refresh
+  card's channel name, or on a Channels page entry, it opens the channel (`startChannelInfo`). On a sidebar entry
+  (Subscriptions, Channels, History, Playlists, Settings) it opens that page in a new window (`startPage`); right
+  click there shows a menu with Open / Open in new window. The refresh
   button (F5) reloads the video at its position, the feed, a channel, search results or history.
 - **Background windows:** with `openInBackground`, "Open in new window" shows the new window without
   activating it (`WindowTools.showInBackground`): Windows shows it directly behind the current window in one
@@ -319,6 +321,11 @@ Library versions are pinned in `helper/deno.json`.
   (Cancel / Snooze 10 min; the first window comes forward); videos are paused and their position saved before.
   "Graceful" off adds `/f` to `shutdown`; "Keep the screen awake" uses `SetThreadExecutionState`. Running:
   Pause / Resume, +10 min, Restart, Cancel. The last choices are kept (`settings.timerPrefs`).
+  Windows runs timers that ran out while the PC slept or hibernated as soon as it wakes (both the warning and the
+  action at once: it once hibernated the laptop 2 s after the lid was opened), so a timer more than 15 s past its
+  wall-clock end is cancelled instead (logged "ran out ... while the PC was asleep"), and a PC action always waits
+  until its warning has been shown for the full 60 s. Tested by freezing the stage copy (`NtSuspendProcess`) past
+  the end.
   `FTL_TIMER_DRYRUN=file` only writes the commands to that file; `testrun.sh` always sets it.
 - **Codec setting** (`settings.codec`: auto | vp9 | h264 | av1, passed to `streams`): a preferred codec is used
   whenever the video has it up to the quality limit, even at a lower resolution; auto = highest resolution and
@@ -344,6 +351,11 @@ Library versions are pinned in `helper/deno.json`.
   breaks off (or its links expired), `PlayerView.recover` reopens the video where it stopped with a new
   lookup: when mpv fails, or a video ends more than 5 s before its length; after 2, 5, 10, 20, 30, 30 s
   ("Connection lost: retrying in …"), counting again once it played a minute.
+- **Picture frozen, sound going on** (seen after the PC slept): mpv's warnings and errors go to Data/app.log
+  (`mpv_request_log_messages` at "warn", at most 30 a minute), and `MpvItem.videoLost` reloads the video where it
+  was, paused if it was (`PlayerView`, at most once in 10 s), when mpv reports its GPU device lost/removed/reset, or
+  when Windows reports a wake from sleep (`WM_POWERBROADCAST` resume, through a native event filter, once for all
+  players 3 s later).
 - **Sandbox:** the helper may only reach YouTube/Google hosts and 127.0.0.1, write `Data/cache`, and read
   the token worker. YouTube's player code runs in a worker with no permissions.
 - **Back button:** `pageStack` holds pages, and a video left for another page (a sidebar tab, a channel, a
@@ -389,6 +401,13 @@ Library versions are pinned in `helper/deno.json`.
   dark, a white one on light (`assets/icon_dark|light.svg/png`; the exe's `icon.ico` and the extension's icon
   are the dark one). main.cpp sets both from settings.json before the first window; AppState only acts on changes
   once it is complete (`started`: changing the icon while it was being made had the windows read `colors` early).
+- **Members-only videos** (only the channel's members can watch them; YouTube sends this app no stream for them):
+  a MEMBERS ONLY badge on their cards, and `hideMembersOnly` (Settings > Subscriptions) leaves them out of both
+  feeds. Search / channel items carry `membersOnly` from YouTube's badge (`BADGE_MEMBERS_ONLY`, in a LockupView's
+  metadata rows). RSS doesn't tell, so the background pass over the channels' Videos tabs (`fillDurations`) also
+  records it for every feed video (`AppState.membersOnly`, Data/members-only.json; once for the videos there before,
+  then for new ones), and a video YouTube refuses as members-only is added when opened. The cards' menu also has
+  Open in browser (youtube.com/watch?v=…).
 - **Card previews** (`cardPreview`, Settings > Layout, on by default): with the pointer on a card, its bar
   shows along the thumbnail's bottom; along the lower third of the thumbnail (`scrubArea`) the card shows the
   storyboard picture at that point (all the video's sheets load at once, an image each kept while the pointer

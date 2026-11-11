@@ -12,7 +12,9 @@
 #include <QKeyEvent>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QAbstractNativeEventFilter>
 #include <QPointer>
+#include <QRegularExpression>
 #include <QQuickWindow>
 #include <QTimer>
 #include <QWindow>
@@ -165,6 +167,7 @@ MpvItem::MpvItem(QQuickItem *parent) : QQuickItem(parent)
 {
     // Fallback for quitting without a window close (the window's closing signal is the main path).
     connect(qApp, &QCoreApplication::aboutToQuit, this, &MpvItem::release);
+    registerPlayer(true);
     m_settle.setSingleShot(true);
     m_settle.setInterval(50);
     connect(&m_settle, &QTimer::timeout, this, [this] {
@@ -183,6 +186,7 @@ void MpvItem::startSettling()
 
 MpvItem::~MpvItem()
 {
+    registerPlayer(false);
     release();
     delete m_video;
 }
@@ -261,6 +265,8 @@ bool MpvItem::ensureMpv()
         m_mpv = nullptr;
         return false;
     }
+    // mpv's warnings and errors, for Data/app.log (MPV_EVENT_LOG_MESSAGE)
+    mpv_request_log_messages(m_mpv, "warn");
     mpv_observe_property(m_mpv, 0, "fullscreen", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 0, "pause", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 0, "eof-reached", MPV_FORMAT_FLAG);
@@ -764,6 +770,49 @@ void MpvItem::release()
 // the frame mpv drew while the window was still being laid out, cut and shifted, with what was behind showing
 // through, until the window was resized: mpv draws a paused video again only when asked. Windows asks with a
 // paint message, so the video window is marked as needing one, now and while the layout settles.
+#ifdef Q_OS_WIN
+// Windows' "resumed from sleep" (WM_POWERBROADCAST, to every top-level window, twice): once, a moment later, to
+// every player (videoLost). The players register themselves (MpvItem's constructor / destructor).
+static QSet<MpvItem *> players;
+class ResumeFilter : public QAbstractNativeEventFilter
+{
+public:
+    bool nativeEventFilter(const QByteArray &type, void *message, qintptr *) override
+    {
+        const MSG *msg = static_cast<const MSG *>(message);
+        if (type == "windows_generic_MSG" && msg->message == WM_POWERBROADCAST
+            && (msg->wParam == PBT_APMRESUMEAUTOMATIC || msg->wParam == PBT_APMRESUMESUSPEND) && !pending) {
+            pending = true;
+            QTimer::singleShot(3000, [this] {
+                pending = false;
+                for (MpvItem *p : std::as_const(players))
+                    emit p->videoLost(QStringLiteral("the PC woke up from sleep"));
+            });
+        }
+        return false;
+    }
+private:
+    bool pending = false;
+};
+#endif
+
+void MpvItem::registerPlayer(bool on)
+{
+#ifdef Q_OS_WIN
+    static ResumeFilter *filter = nullptr;
+    if (!filter) {
+        filter = new ResumeFilter;
+        QCoreApplication::instance()->installNativeEventFilter(filter);
+    }
+    if (on)
+        players.insert(this);
+    else
+        players.remove(this);
+#else
+    Q_UNUSED(on)
+#endif
+}
+
 void MpvItem::redrawVideo()
 {
 #ifdef Q_OS_WIN
@@ -869,6 +918,23 @@ void MpvItem::processEvents()
                 setSubtitle(sub.value("url").toString(), sub.value("title").toString(), sub.value("lang").toString());
             emit started();
             break;
+        case MPV_EVENT_LOG_MESSAGE: {
+            // Into Data/app.log (at most 30 a minute: a broken stream can repeat one many times). One about the GPU
+            // device being lost means the picture stays as it is while the sound goes on: videoLost.
+            auto *m = static_cast<mpv_event_log_message *>(ev->data);
+            const QString text = QString::fromUtf8(m->text).trimmed();
+            if (!m_logMinute.isValid() || m_logMinute.elapsed() > 60000) {
+                m_logMinute.start();
+                m_logLines = 0;
+            }
+            if (++m_logLines <= 30)
+                qWarning("mpv [%s] %s: %s", m->prefix, m->level, qPrintable(text));
+            static const QRegularExpression lost(QStringLiteral("device (lost|removed|reset|hung)|DXGI_ERROR_DEVICE"),
+                                                 QRegularExpression::CaseInsensitiveOption);
+            if (lost.match(text).hasMatch())
+                emit videoLost("mpv: " + text);
+            break;
+        }
         case MPV_EVENT_END_FILE: {
             auto *e = static_cast<mpv_event_end_file *>(ev->data);
             if (e->reason == MPV_END_FILE_REASON_ERROR)

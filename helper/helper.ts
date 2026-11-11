@@ -92,6 +92,8 @@ function videoItem(v: any) {
   const id = v.video_id ?? v.id;
   if (!id) return null;
   const badges = (v.badges ?? []).map((b: any) => text(b.label ?? b.text)).join(' ').toLowerCase();
+  // for the channel's members only (they can't be played here: VideoCard's badge, the hideMembersOnly setting)
+  const membersOnly = badges.includes('members only') || (v.badges ?? []).some((b: any) => /MEMBERS_ONLY/.test(b.style ?? ''));
   return {
     videoId: id,
     title: text(v.title),
@@ -102,6 +104,7 @@ function videoItem(v: any) {
     published: text(v.published),
     live: !!v.is_live || badges.includes('live'),
     upcoming: !!v.is_upcoming,
+    membersOnly,
     short: false,
     publishedAt: 0,
     thumbnail: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
@@ -188,9 +191,12 @@ function lockupItem(lv: any, now: number) {
   // "Streamed 2 days ago" = an ended live stream; "Premieres ..." / a plain "2 days ago" = a premiere.
   const stream = live || /^streamed/i.test(published) || (upcoming && /^scheduled/i.test(published));
   const duration = badges.map((b: any) => b.text ?? '').find((t: string) => /^\d+(:\d\d)+$/.test(t)) ?? '';
+  // "Members only" is a badge in the metadata rows (BADGE_MEMBERS_ONLY), not on the thumbnail
+  const membersOnly = (lv.metadata?.metadata?.metadata_rows ?? []).some((r: any) =>
+    (r.badges ?? []).some((b: any) => /MEMBERS_ONLY/.test(b.style ?? '') || /members only/i.test(text(b.text))));
   return {
     videoId: id, title: text(lv.metadata?.title), channel, channelId: '',
-    duration, views: views.replace(/ (views?|watching|waiting)$/i, ''), published, live, upcoming, stream, short: false,
+    duration, views: views.replace(/ (views?|watching|waiting)$/i, ''), published, live, upcoming, stream, membersOnly, short: false,
     publishedAt: live || upcoming ? now : approxTime(published, now),
     thumbnail: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
   };
